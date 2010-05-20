@@ -1,0 +1,2 @@
+class BadDataException < Exception
+end

@@ -1,0 +1,2 @@
+class BadDomainException < Exception
+end
