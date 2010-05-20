@@ -1,2 +1,4 @@
-class BadDataException < Exception
+module Cerealizer
+  class BadDataException < Exception
+  end
 end
