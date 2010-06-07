@@ -1,8 +1,10 @@
 module Cerealizer
   VERSION = "0.0.1"
 end
-require 'cerealizer/base'
 require 'cerealizer/exceptions.rb'
+require 'cerealizer/base'
+require 'cerealizer/wrapper'
 require 'cerealizer/finite_integer_range'
+require 'cerealizer/infinite_integer_range'
 
 include Cerealizer

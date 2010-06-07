@@ -1,4 +1,5 @@
 module Cerealizer
+  include Exceptions
   class FiniteIntegerRange < Base
     def initialize(*args)
       if(args.length == 1 and args[0].class == Range)

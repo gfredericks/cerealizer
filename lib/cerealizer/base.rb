@@ -7,5 +7,9 @@ module Cerealizer
     def from_hex(s)
       self.from_n(s.to_i(16))
     end
+
+    def wrap(encode, decode)
+      Wrapper.new(self,encode,decode)
+    end
   end
 end
