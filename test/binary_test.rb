@@ -11,6 +11,7 @@ class BinaryTest < Test::Unit::TestCase
 
   private
   def assert_serializes(serializer, ob)
+    puts "Asserting #{serializer} -- #{ob}"
     assert_equal(ob, serializer.from_n(serializer.to_n(ob)))
   end
 end

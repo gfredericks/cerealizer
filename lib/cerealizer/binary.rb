@@ -6,6 +6,7 @@ module Cerealizer
     end
 
     def to_n(bin, opts = {})
+      # This isn't correct for chunk_size > 1
       if(opts[:length] and opts[:length] % @chunksize > 0)
         raise BadDomainException.new
       end
@@ -33,9 +34,8 @@ module Cerealizer
       #TODO: Not finished at all
       if(opts[:format] == :string)
         n.to_s(2)[1..-1]
-      end
-      length = opts[:length] || :something
-      while(n > 1)
+      else
+        length = 
       end
     end
   end
