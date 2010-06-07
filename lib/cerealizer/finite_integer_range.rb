@@ -6,10 +6,10 @@ module Cerealizer
         @range = args[0]
       elsif(args.length == 2 and args.all?{|a|a.class == Fixnum})
         @range = args[0]..args[1]
-        raise CerealizerException.new("Range must be positive length") unless args[1] > args[0]
       else
         raise CerealizerException.new("Bad argument to FiniteIntegerRange constructor")
       end
+      raise CerealizerException.new("Range must be positive length") unless @range.begin < @range.end
     end
 
     def count
