@@ -72,21 +72,69 @@ module Cerealizer
                           1)
       end
 
+      def self.string_partitions(string_length, n)
+        return 1 if string_length == 0 or n == 1
+        return n if string_length == 1
+        @@sp||={}
+        @@sp[[string_length,n]]||=begin
+          (0..string_length).map{|x|string_partitions(string_length - x, n - 1)}.inject(0){|u,v|u+v}
+        end
+      end
+
+      def self.nth_partition(s, n, i)
+        raise "Foul!" if i > string_partitions(s.length, n)
+        return [s] if n == 1
+        return [""] * n if s.empty?
+        last_length = 0
+        while(i > (k=string_partitions(s.length-last_length, n-1)))
+          last_length += 1
+          i -= k
+        end
+        a = nth_partition(last_length == 0 ? s : s[0...(-last_length)], n-1, i)
+        a << (last_length == 0 ? "" : s[(-last_length)..-1])
+        a
+      end
+
+      def self.partition_lengths_to_n(a)
+        return 1 if a.length < 2
+        n = 0
+        total = a.inject{|u,v|u+v}
+        (0...a.last).each{|x|n+=string_partitions(total-x, a.length-1)}
+        n + partition_lengths_to_n(a[0...-1])
+      end
+
+      binary_strings = Domain.string("01")
       Domain.new(
         lambda{|a|a.class == Array and a.length == length and a.all?{|n|is_n?(n)}},
         lambda{|a|
-          t = a.inject{|u,v|u+v}
-          n = cubico(length, t - 1)
-          while(a.length>1)
-            t-=a.shift
-            n+=Tuple.cubico(a.length,t-1)
+          a = a.map{|n|n.to_s(2)[1..-1]}
+          total_bits = a.join("").length
+          bits = 0
+          n = 0
+          while(bits < total_bits)
+            n += (string_partitions(bits, length)*(2**bits))
+            bits += 1
           end
-          n},
+          n += (a.join("").to_i(2))*string_partitions(total_bits, length)
+          n + partition_lengths_to_n(a.map{|s|s.length})
+        },
         lambda{|n|
-          total = length
-          total +=1 until(cubico(length, total) >= n)
-          n-=cubico(length, total - 1)
-          helper(total, length, n)
+          nn = 1
+          bits = 0
+          while(n > (k=string_partitions(bits, length)*(2**bits)))
+            n -= k
+            bits += 1
+          end
+          #nn = binary_strings.to_n("0"*bits)
+          k = string_partitions(bits, length)
+          n-=1
+          #nn += n/k
+          s = "%0#{bits}d" % ((n/k).to_s(2).to_i)
+          s = "" if bits == 0
+          n = 1 + n % k
+
+          parts = nth_partition(s, length, n)
+          parts.map{|s|("1"+s).to_i(2)}
         },
         :aleph_null)
     end
@@ -138,57 +186,5 @@ module Cerealizer
     require 'cerealizer/base_domains'
 
     include Cerealizer::BaseDomains
-
-    private
-
-    def fact(n)
-      @@facts||=[1]
-      @@facts.push(@@facts.length*@@facts.last) while(@@facts.length <=n)
-      @@facts[n]
-    end
-
-    # Total number of tuples of length 'c' with total 't'
-    def bico(c,t)
-      return 0 if c > t
-      (([t-c,c-1].max+1)..(t-1)).inject(1){|u,v|u*v}/fact([t-c,c-1].min)
-    end
-   
-    # Total number of tuples of length 'c' with total <= 't'
-    def cubico(c,t)
-      return 0 if c > t
-      bico(c+1,t+1)
-    end
-
-    # total, length, offset
-    def helper(t,l,o)
-      return [t] if l==1
-      ret=Array.new(l)
-      (0...(l-2)).each do |i|
-
-        # Check for TakingTooLong
-        raise TakingTooLongException if(Time.new - @started > @too_long)
-
-        # This is where we should be able to use a binary search
-        total_range=(l-i-1)..(t-1)
-        # Need to find the smallest number j such that o < Tuple.cubico(l-i-1,j)
-        until total_range.first==total_range.last
-          guess=(total_range.first+total_range.last)/2
-          if(o < Tuple.cubico(l-i-1,guess))
-            total_range=total_range.first..(guess)
-          else
-            total_range=(guess+1)..total_range.last
-          end
-        end
-        head=t-total_range.first
-        o-=Tuple.cubico(l-i-1,total_range.first-1)
-
-        ret[i]=head
-        t-=head
-      end
-      ret[l-2]=t-o-1
-      ret[l-1]=o+1
-      ret
-    end
-
   end
 end
