@@ -64,6 +64,33 @@ module Cerealizer
         :aleph_null)
     end
 
+    def self.fixed_length_natural_array(length)
+      if(length==0)
+        return Domain.new(lambda{|el|el==[]},
+                          lambda{|a|return 1},
+                          lambda{|n|return []},
+                          1)
+      end
+
+      Domain.new(
+        lambda{|a|a.class == Array and a.length == length and a.all?{|n|is_n?(n)}},
+        lambda{|a|
+          t = a.inject{|u,v|u+v}
+          n = cubico(length, t - 1)
+          while(a.length>1)
+            t-=a.shift
+            n+=Tuple.cubico(a.length,t-1)
+          end
+          n},
+        lambda{|n|
+          total = length
+          total +=1 until(cubico(length, total) >= n)
+          n-=cubico(length, total - 1)
+          helper(total, length, n)
+        },
+        :aleph_null)
+    end
+
     def self.finite_disjunction(set)
       check_that("set must be enumerable"){set.class < Enumerable}
       set = set.to_set
@@ -108,49 +135,60 @@ module Cerealizer
 
     public 
 
-    NATURALS = Domain.new(
-      lambda{|ob|self.is_n?(ob)},
-      lambda{|x|x}, 
-      lambda{|x|x},
-      :aleph_null)
+    require 'cerealizer/base_domains'
 
-    ASCII = self.string(" !\"\#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
+    include Cerealizer::BaseDomains
 
-    NATURAL_ARRAY = 
-      begin
-        ternary = self.string("012")
-        split_twos = lambda do |s|
-          i = s.index('2')
-          return [s] unless i
-          [s[0...i]] + split_twos.call(s[(i+1)..-1])
+    private
+
+    def fact(n)
+      @@facts||=[1]
+      @@facts.push(@@facts.length*@@facts.last) while(@@facts.length <=n)
+      @@facts[n]
+    end
+
+    # Total number of tuples of length 'c' with total 't'
+    def bico(c,t)
+      return 0 if c > t
+      (([t-c,c-1].max+1)..(t-1)).inject(1){|u,v|u*v}/fact([t-c,c-1].min)
+    end
+   
+    # Total number of tuples of length 'c' with total <= 't'
+    def cubico(c,t)
+      return 0 if c > t
+      bico(c+1,t+1)
+    end
+
+    # total, length, offset
+    def helper(t,l,o)
+      return [t] if l==1
+      ret=Array.new(l)
+      (0...(l-2)).each do |i|
+
+        # Check for TakingTooLong
+        raise TakingTooLongException if(Time.new - @started > @too_long)
+
+        # This is where we should be able to use a binary search
+        total_range=(l-i-1)..(t-1)
+        # Need to find the smallest number j such that o < Tuple.cubico(l-i-1,j)
+        until total_range.first==total_range.last
+          guess=(total_range.first+total_range.last)/2
+          if(o < Tuple.cubico(l-i-1,guess))
+            total_range=total_range.first..(guess)
+          else
+            total_range=(guess+1)..total_range.last
+          end
         end
-        Domain.new(
-          lambda{|a|a.class == Array and a.all?{|el|is_n?(el)}},
-          lambda{|a|return 1 if a == []; 1 + ternary.to_n(a.map{|x|x.to_s(2)[1..-1]}.join("2"))},
-          lambda{|n|return [] if n == 1; split_twos.call(ternary.from_n(n-1)).map{|x|("1"+x).to_i(2)}},
-          :aleph_null)
+        head=t-total_range.first
+        o-=Tuple.cubico(l-i-1,total_range.first-1)
+
+        ret[i]=head
+        t-=head
       end
+      ret[l-2]=t-o-1
+      ret[l-1]=o+1
+      ret
+    end
 
-    NATURAL_SET = Domain.new(
-      lambda{|ob|ob.class == Set and ob.all?{|el|is_n?(el)}},
-      lambda{|s|
-        a = s.to_a.sort
-        i = a.length-1
-        while(i > 0)
-          a[i] = a[i] - a[i-1]
-          i-=1
-        end
-        NATURAL_ARRAY.to_n(a)
-      },
-      lambda{|n|
-        a = NATURAL_ARRAY.from_n(n)
-        s = Set.new
-        n = 0
-        a.each do |m|
-          s.add(n+=m)
-        end
-        s
-      },
-      :aleph_null)
   end
 end
