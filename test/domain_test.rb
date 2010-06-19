@@ -6,6 +6,8 @@ class DomainTest < Test::Unit::TestCase
   def test_base_domains
     assert_domain(Cerealizer::Domain::NATURALS)
     assert_domain(Cerealizer::Domain::ASCII)
+    assert_domain(Cerealizer::Domain::NATURAL_ARRAY)
+    assert_domain(Cerealizer::Domain::NATURAL_SET)
   end
 
   private

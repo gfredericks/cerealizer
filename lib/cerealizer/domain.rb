@@ -62,7 +62,6 @@ module Cerealizer
           alphabet[0]*(digits - s.length) + s
         },
         :aleph_null)
-          #n + s.to_i(3)
     end
 
     def self.finite_disjunction(set)
@@ -74,6 +73,11 @@ module Cerealizer
         lambda{|el|1 + a.index?(el)},
         lambda{|n|a[n-1]},
         a.length)
+    end
+
+    def cartesian_product(*domains)
+      check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
+      check_that("at least one domain is required"){not domains.empty?}
     end
 
     def convert_to(ob, domain)
@@ -112,5 +116,41 @@ module Cerealizer
 
     ASCII = self.string(" !\"\#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~")
 
+    NATURAL_ARRAY = 
+      begin
+        ternary = self.string("012")
+        split_twos = lambda do |s|
+          i = s.index('2')
+          return [s] unless i
+          [s[0...i]] + split_twos.call(s[(i+1)..-1])
+        end
+        Domain.new(
+          lambda{|a|a.class == Array and a.all?{|el|is_n?(el)}},
+          lambda{|a|return 1 if a == []; 1 + ternary.to_n(a.map{|x|x.to_s(2)[1..-1]}.join("2"))},
+          lambda{|n|return [] if n == 1; split_twos.call(ternary.from_n(n-1)).map{|x|("1"+x).to_i(2)}},
+          :aleph_null)
+      end
+
+    NATURAL_SET = Domain.new(
+      lambda{|ob|ob.class == Set and ob.all?{|el|is_n?(el)}},
+      lambda{|s|
+        a = s.to_a.sort
+        i = a.length-1
+        while(i > 0)
+          a[i] = a[i] - a[i-1]
+          i-=1
+        end
+        NATURAL_ARRAY.to_n(a)
+      },
+      lambda{|n|
+        a = NATURAL_ARRAY.from_n(n)
+        s = Set.new
+        n = 0
+        a.each do |m|
+          s.add(n+=m)
+        end
+        s
+      },
+      :aleph_null)
   end
 end
