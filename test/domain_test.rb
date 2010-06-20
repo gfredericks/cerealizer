@@ -61,6 +61,17 @@ class DomainTest < Test::Unit::TestCase
     assert_domain(combo)
   end
 
+  def test_recur_basic_tree
+    leaf = Domain::NATURALS
+    tree = (Domain.recursively_define do |ob|
+      ob.define(:tree) do
+        ob.join(leaf, ob.cartesian_product(:tree,:tree))
+      end
+    end)[:tree]
+    assert_domain(tree)
+    assert_range(tree,[1,2,3,4,5,[1,[2,[3,4]]],[5,6],[6,7],[8,10]])
+  end
+
   private
   def assert_domain(d)
     ceiling = d.cardinality

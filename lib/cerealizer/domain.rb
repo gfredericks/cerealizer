@@ -67,8 +67,10 @@ module Cerealizer
     def self.recursively_define
       ob = Object.new
       class << ob
-        @domains = {}
+        attr_reader :domains
         def define(domain_name)
+          @domains ||= {}
+          @defining ||= nil # avoids warning
           raise "Can only define one domain at a time" if(@defining)
           Domain.check_that("domain name must be symbol"){domain_name.class==Symbol}
           @defining = domain_name
@@ -80,21 +82,23 @@ module Cerealizer
         def method_missing(m, *args)
           super unless(Domain.respond_to?(m) and not Class.respond_to?(m))
           super unless(@defining)
-          Domain.send(m, *args) unless DOMAIN_COMBINATORS.include?(m,to_s)
+          return Domain.send(m, *args) unless DOMAIN_COMBINATORS.include?(m.to_s)
           args = args.map do |a|
             if(a.class == Symbol)
               Domain.new(lambda{|x|@domains[a].domain.call(x)},
                          lambda{|x|@domains[a].to_n(x)},
-                         lambda{|n|@domains[a].from_n(x)},
+                         lambda{|n|@domains[a].from_n(n)},
                          # THIS IS A QUESTIONABLE ASSUMPTION
                          :aleph_null)
             elsif(a.class == Domain)
               a
             end
           end
+          Domain.send(m, *args)
         end
       end
       yield(ob)
+      ob.domains
     end
 
     def self.fixed_length_natural_array(length)
@@ -240,7 +244,7 @@ module Cerealizer
       unless(infinites.empty?)
         infinite_domains = infinites.map{|i|domains[i]}
         ns = Domain.fixed_length_natural_array(infinites.length)
-        infinite = Domain.new(lambda{|a|a.length == infinites.length and a.zip(infinite_domains).all?{|el,d|d.domain.call(el)}},
+        infinite = Domain.new(lambda{|a|a.class==Array and a.length == infinites.length and a.zip(infinite_domains).all?{|el,d|d.domain.call(el)}},
                               lambda{|a|
                                 a = a.zip(infinite_domains).map{|el,d|d.to_n(el)}
                                 ns.to_n(a)
