@@ -10,5 +10,6 @@ require 'cerealizer/infinite_integer_range'
 require 'cerealizer/binary'
 =end
 require 'cerealizer/domain'
+require 'cerealizer/example_domains'
 
 include Cerealizer

@@ -4,6 +4,11 @@ require 'cerealizer'
 class DomainTest < Test::Unit::TestCase
   include Cerealizer
 
+  def test_tmp
+    json = ExampleDomains::ASCII_JSON
+    p (1..50).map{|n|json.from_n(n)}
+  end
+
   def test_base_domains
     assert_domain(Domain::NATURALS)
     assert_domain(Domain::ASCII)
@@ -65,11 +70,17 @@ class DomainTest < Test::Unit::TestCase
     leaf = Domain::NATURALS
     tree = (Domain.recursively_define do |ob|
       ob.define(:tree) do
-        ob.join(leaf, ob.cartesian_product(:tree,:tree))
+        Domain.join(leaf, Domain.cartesian_product(ob.stub(:tree),ob.stub(:tree)))
       end
     end)[:tree]
     assert_domain(tree)
-    assert_range(tree,[1,2,3,4,5,[1,[2,[3,4]]],[5,6],[6,7],[8,10]])
+    assert_range(tree,[1,2,3,4,5,[1,[2,[3,4]]],[5,6],[6,7],[8,10],[[[6,3],8],[1,2]]])
+  end
+
+  def test_set_of
+    ascii_strings = Domain.set_of(Domain::ASCII)
+    assert_domain(ascii_strings)
+    assert_range(ascii_strings, [%w(this a nd that), %w(wait till they take), %w(down), %w(the), []].map{|a|Set.new(a)})
   end
 
   private
@@ -79,13 +90,21 @@ class DomainTest < Test::Unit::TestCase
     ([100,ceiling].min).times do |i|
       n = rand(ceiling) + 1
       unless(i+1 > ceiling)
-        ob = d.from_n(i+1)
-        nn = d.to_n(ob)
-        assert_equal(i+1, nn, "Input #{i+1} maps to #{ob.inspect} and back to #{nn}")
+        begin
+          ob = d.from_n(i+1)
+          nn = d.to_n(ob)
+          assert_equal(i+1, nn, "Input #{i+1} maps to #{ob.inspect} and back to #{nn}")
+        rescue(Exception) => e
+          assert(false,"Exception thrown when trying to map from #{i+1}: #{e.inspect}")
+        end
       end
-      ob = d.from_n(n)
-      nn = d.to_n(ob)
-      assert_equal(n, nn, "Input #{n} maps to #{ob.inspect} and back to #{nn}")
+      begin
+        ob = d.from_n(n)
+        nn = d.to_n(ob)
+        assert_equal(n, nn, "Input #{n} maps to #{ob.inspect} and back to #{nn}")
+      rescue(Exception) => e
+        assert(false,"Exception thrown when trying to map from #{i+1}: #{e.inspect}")
+      end
     end
   end
 

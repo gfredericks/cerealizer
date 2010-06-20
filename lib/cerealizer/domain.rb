@@ -78,27 +78,42 @@ module Cerealizer
           @defining = nil
           @domains[domain_name]=d
         end
-        DOMAIN_COMBINATORS = %w(join cartesian_product)
-        def method_missing(m, *args)
-          super unless(Domain.respond_to?(m) and not Class.respond_to?(m))
-          super unless(@defining)
-          return Domain.send(m, *args) unless DOMAIN_COMBINATORS.include?(m.to_s)
-          args = args.map do |a|
-            if(a.class == Symbol)
-              Domain.new(lambda{|x|@domains[a].domain.call(x)},
-                         lambda{|x|@domains[a].to_n(x)},
-                         lambda{|n|@domains[a].from_n(n)},
-                         # THIS IS A QUESTIONABLE ASSUMPTION
-                         :aleph_null)
-            elsif(a.class == Domain)
-              a
-            end
-          end
-          Domain.send(m, *args)
+
+        def stub(domain_name)
+          Domain.check_that("domain name must be symbol"){domain_name.class==Symbol}
+          @domain_stubs||={}
+          @domain_stubs[domain_name] ||= 
+            Domain.new(lambda{|x|@domains[domain_name].domain.call(x)},
+                       lambda{|x|@domains[domain_name].to_n(x)},
+                       lambda{|n|@domains[domain_name].from_n(n)},
+                       # THIS IS A QUESTIONABLE ASSUMPTION
+                       :aleph_null)
         end
       end
       yield(ob)
       ob.domains
+    end
+
+    def without(*obs)
+      return self if obs.empty?
+      Domain.check_that("All objects must be part of domain"){obs.all?{|ob|self.domain.call(ob)}}
+      ob_set = Set.new(obs)
+      mappings = obs.map{|ob|{ob=>self.to_n(ob)}}.inject{|u,v|u.merge(v)}
+      indexes = mappings.values.sort
+      Domain.new(lambda{|ob|self.domain.call(ob) and not ob_set.include?(ob)},
+                 lambda{|ob|
+                   n = self.to_n(ob)
+                   n - indexes.select{|nn| n > nn}.length
+                 },
+                 lambda{|n|
+                   i = 0
+                   while(i < obs.length and n >= indexes[i])
+                     i+=1
+                     n+=1
+                   end
+                   self.from_n(n)
+                 },
+                 self.cardinality == :aleph_null ? :aleph_null : self.cardinality - obs.length)
     end
 
     def self.fixed_length_natural_array(length)
@@ -227,6 +242,27 @@ module Cerealizer
       else
         spread_even
       end
+    end
+
+    def self.set_of(domain)
+      Domain::NATURAL_SET.map(
+          lambda{|s|s.class == Set and s.all?{|ob|domain.domain.call(ob)}},
+          lambda{|s|Set.new(s.map{|n|domain.from_n(n)})},
+          lambda{|s|Set.new(s.map{|ob|domain.to_n(ob)})})
+    end
+
+    def self.array_of(domain)
+      Domain::NATURAL_ARRAY.map(
+          lambda{|s|s.class == Array and s.all?{|ob|domain.domain.call(ob)}},
+          lambda{|s|s.map{|n|domain.from_n(n)}},
+          lambda{|s|s.map{|ob|domain.to_n(ob)}})
+    end
+
+    def map(domain_predicate, from_old_to_new, from_new_to_old)
+      Domain.new(domain_predicate,
+                 lambda{|ob|self.to_n(from_new_to_old.call(ob))},
+                 lambda{|n|from_old_to_new.call(self.from_n(n))},
+                 self.cardinality)
     end
 
     def self.cartesian_product(*domains)
