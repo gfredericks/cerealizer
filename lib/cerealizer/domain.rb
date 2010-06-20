@@ -156,27 +156,26 @@ module Cerealizer
       cards = domains.map{|d|d.cardinality}
       min = cards.reject{|c|c == :aleph_null}.min
       zipped = domains.zip((1..domains.length).to_a)
-      card = (cards == [:aleph_null] ? :aleph_null : cards.length * min)
-      d=Domain.new(lambda{|a|(domains).any?{|el,d|d.domain.call(el)}},
-                 lambda{|n|
-                   n-=1
-                   d = domains[n % domains.length]
-                   d.from_n(n/domains.length)
-                 },
+      card = (cards.uniq == [:aleph_null] ? :aleph_null : cards.length * min)
+      spread_even=Domain.new(lambda{|a|(domains).any?{|d|d.domain.call(a)}},
                  lambda{|ob|
                    doms = zipped.select{|d,i|d.domain.call(ob)}
                    check_that("object must be part of exactly one domain"){doms.length == 1}
                    dom,i = doms[0]
                    (dom.to_n(ob) - 1)*domains.length + i
                  },
+                 lambda{|n|
+                   n-=1
+                   domains[n % domains.length].from_n(1+n/domains.length)
+                 },
                  card)
       if(min and cards.uniq.length > 1)
-        chomped = domains.reject{|d|d.domain == min}.map{|d|d.drop(min)}
-        dd = chomped.length == 1 ? chomped[0] : Domain.join(*chomped)
+        chomped = domains.reject{|d|d.cardinality == min}.map{|d|d.drop(min)}
+        dd = (chomped.length == 1 ? chomped[0] : Domain.join(*chomped))
         ceiling = min * cards.length
-        Domain.new(d.domain,
+        Domain.new(spread_even.domain,
                    lambda{|ob|
-                     n = d.to_n(ob)
+                     n = spread_even.to_n(ob)
                      return n if n <= ceiling
                      ceiling + dd.to_n(ob)
                    },
@@ -184,12 +183,12 @@ module Cerealizer
                      if(n > ceiling)
                        dd.from_n(n-ceiling)
                      else
-                       d.from_n(n)
+                       spread_even.from_n(n)
                      end
                    },
                    cards.any?{|c|c == :aleph_null} ? :aleph_null : cards.inject{|u,v|u+v})
       else
-        d
+        spread_even
       end
     end
 
