@@ -64,6 +64,39 @@ module Cerealizer
         :aleph_null)
     end
 
+    def self.recursively_define
+      ob = Object.new
+      class << ob
+        @domains = {}
+        def define(domain_name)
+          raise "Can only define one domain at a time" if(@defining)
+          Domain.check_that("domain name must be symbol"){domain_name.class==Symbol}
+          @defining = domain_name
+          d = yield
+          @defining = nil
+          @domains[domain_name]=d
+        end
+        DOMAIN_COMBINATORS = %w(join cartesian_product)
+        def method_missing(m, *args)
+          super unless(Domain.respond_to?(m) and not Class.respond_to?(m))
+          super unless(@defining)
+          Domain.send(m, *args) unless DOMAIN_COMBINATORS.include?(m,to_s)
+          args = args.map do |a|
+            if(a.class == Symbol)
+              Domain.new(lambda{|x|@domains[a].domain.call(x)},
+                         lambda{|x|@domains[a].to_n(x)},
+                         lambda{|n|@domains[a].from_n(x)},
+                         # THIS IS A QUESTIONABLE ASSUMPTION
+                         :aleph_null)
+            elsif(a.class == Domain)
+              a
+            end
+          end
+        end
+      end
+      yield(ob)
+    end
+
     def self.fixed_length_natural_array(length)
       if(length==0)
         return Domain.new(lambda{|el|el==[]},
