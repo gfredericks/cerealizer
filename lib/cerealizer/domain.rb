@@ -153,7 +153,32 @@ module Cerealizer
     def self.join(*domains)
       check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
       check_that("at least two domains are required"){domains.length > 1}
+      cards = domains.map{|d|d.cardinality}
+      min = cards.reject{|c|c == :aleph_null}.min
+      if(min)
+        if(cards.all?{|c|c==min})
+          
+        else
 
+        end
+      else
+        # All infinite domains
+        zipped = domains.zip((1..domains.length).to_a)
+        Domain.new(lambda{|a|(domains).any?{|el,d|d.domain.call(el)}},
+                   lambda{|ob|
+                     doms = zipped.select{|d,i|d.domain.call(ob)}
+                     check_that("object must be part of exactly one domain"){doms.length == 1}
+                     dom,i = doms[0]
+                     (dom.to_n(ob) - 1)*domains.length + i
+                   },
+                   lambda{|n|
+                     n-=1
+                     d = domains[n % domains.length]
+                     d.from_n(n/domains.length)
+                   },
+                   :aleph_null)
+
+      end
     end
 
     def self.cartesian_product(*domains)
@@ -242,6 +267,22 @@ module Cerealizer
         @cardinality == :aleph_null or n <= @cardinality
       end
       @from_n.call(n)
+    end
+
+    # Returns a new domain that excludes the first n elements of this domain
+    def drop(n)
+      check_that("Cannot drop more elements than exist") do
+        @cardinality == :aleph_null or
+        n <= @cardinality
+      end
+      check_that("Cannot drop all the elements of a domain") do
+        @cardinality == :aleph_null or
+        n < @cardinality
+      end
+      Domain.new(lambda{|ob|@domain.call(ob) and @to_n.call(ob) > n},
+                 lambda{|ob|@to_n.call(ob) - n},
+                 lambda{|m|@from_n.call(m + n)},
+                 @cardinality == :aleph_null ? :aleph_null : @cardinality - n)
     end
     
     private
