@@ -29,7 +29,7 @@ module Cerealizer
           fixed_array_of_values = lambda do |n|
             memoizer[n] ||= Domain.cartesian_product(*([ob.stub(:value)]*n))
           end
-          string_sets_and_nums.map(
+          object = string_sets_and_nums.map(
               lambda{|hm|hm.class == Hash and hm.keys.all?{|k|Domain::ASCII.domain.call(k)} and hm.values.all?{|v|ob.stub(:value).domain.call(v)}},
               lambda{|a|
                 strings,nat = a
@@ -39,9 +39,25 @@ module Cerealizer
               lambda{|hm|
                 [Set.new(hm.keys), fixed_array_of_values.call(hm.size).to_n(hm.keys.sort.map{|k|hm[k]})]
               })
+          Domain.join(object, Domain.finite_disjunction([{}]))
         end
       end
+      doms[:value].to_s=lambda{|v|self.json_value_to_s(v)}
       doms[:value]
+    end
+
+    def self.json_value_to_s(v)
+      if(v.class == Hash)
+        "{"+v.map{|k,vv|k.inspect+":"+json_value_to_s(vv)}.join(",")+"}"
+      elsif(v.class == Array)
+        "["+v.map{|el|json_value_to_s(el)}.join(",")+"]"
+      elsif(v.class == String)
+        v.inspect
+      elsif(v.class == Fixnum or v.class == Bignum)
+        v.to_s
+      else
+        {false=>"false", true=>"true", nil=>"null"}[v]
+      end
     end
     
   end

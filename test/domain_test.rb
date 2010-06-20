@@ -5,8 +5,6 @@ class DomainTest < Test::Unit::TestCase
   include Cerealizer
 
   def test_tmp
-    json = ExampleDomains::ASCII_JSON
-    p (1..50).map{|n|json.from_n(n)}
   end
 
   def test_base_domains

@@ -265,6 +265,10 @@ module Cerealizer
                  self.cardinality)
     end
 
+    def to_s=(lam)
+      @to_s = lam
+    end
+
     def self.cartesian_product(*domains)
       check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
       check_that("at least two domains are required"){domains.length > 1}
@@ -350,7 +354,19 @@ module Cerealizer
       Domain.check_that("Argument must be within cardinality of domain") do
         @cardinality == :aleph_null or n <= @cardinality
       end
-      @from_n.call(n)
+      ob = @from_n.call(n)
+      # This probably isn't acceptable behavior long-term, to exclude numbers
+      #   maybe we could only redefine inspect? :-/
+      if(@to_s and not [Fixnum, Bignum].include?(ob.class))
+        class << ob
+          attr_accessor(:cerealizer_to_s)
+          def to_s
+            cerealizer_to_s.call(self)
+          end
+        end
+        ob.cerealizer_to_s = @to_s
+      end
+      ob      
     end
 
     # Returns a new domain that excludes the first n elements of this domain
