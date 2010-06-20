@@ -22,6 +22,14 @@ class DomainTest < Test::Unit::TestCase
     assert_domain(combo)
   end
 
+  def test_join
+    a = Domain.finite_disjunction("a".."z")
+    b = Domain.finite_disjunction(10055..100255)
+    c = Domain::NATURAL_SET
+    combo = Domain.join(a,b,c)
+    assert_domain(combo)
+  end
+
   private
   def assert_domain(d)
     ceiling = d.cardinality
