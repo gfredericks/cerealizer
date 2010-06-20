@@ -2,7 +2,7 @@ require 'set'
 
 module Cerealizer
   class Domain
-    attr_accessor :cardinality
+    attr_accessor :cardinality, :domain
 
     private 
     def initialize(domain, to_n, from_n, cardinality)
@@ -141,18 +141,90 @@ module Cerealizer
 
     def self.finite_disjunction(set)
       check_that("set must be enumerable"){set.class < Enumerable}
-      set = set.to_set
-      a = set.to_a
+      a = set.to_a.uniq
+      set = a.to_set
       Domain.new(
         lambda{|ob|set.include?(ob)},
-        lambda{|el|1 + a.index?(el)},
+        lambda{|el|1 + a.index(el)},
         lambda{|n|a[n-1]},
         a.length)
     end
 
-    def cartesian_product(*domains)
+    def self.join(*domains)
       check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
-      check_that("at least one domain is required"){not domains.empty?}
+      check_that("at least two domains are required"){domains.length > 1}
+
+    end
+
+    def self.cartesian_product(*domains)
+      check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
+      check_that("at least two domains are required"){domains.length > 1}
+      finites = []
+      infinites = []
+      domains.length.times do |i|
+        if(domains[i].cardinality == :aleph_null)
+          infinites << i
+        else
+          finites << i
+        end
+      end
+      unless(infinites.empty?)
+        infinite_domains = infinites.map{|i|domains[i]}
+        ns = Domain.fixed_length_natural_array(infinites.length)
+        infinite = Domain.new(lambda{|a|a.length == infinites.length and a.zip(infinite_domains).all?{|el,d|d.domain.call(el)}},
+                              lambda{|a|
+                                a = a.zip(infinite_domains).map{|el,d|d.to_n(el)}
+                                ns.to_n(a)
+                              },
+                              lambda{|n|
+                                a = ns.from_n(n)
+                                a.zip(infinite_domains).map{|n,d|d.from_n(n)}
+                              },
+                              :aleph_null)
+      end
+      unless(finites.empty?)
+        finite_domains = finites.map{|i|domains[i]}
+        cards = finite_domains.map{|d|d.cardinality}
+        total_card = cards.inject{|u,v|u*v}
+        finite = Domain.new(lambda{|a|a.length == finites.length and a.zip(finite_domains).all?{|el,d|d.domain.call(el)}},
+                            lambda{|a|
+                              a = a.zip(finite_domains).map{|el,d|d.to_n(el)}
+                              n = 1
+                              mult = 1
+                              a.zip(cards).each do |m, card|
+                                n += (m-1)*mult
+                                mult *= card
+                              end
+                              n
+                            },
+                            lambda{|n|
+                              mult = total_card
+                              a = finite_domains
+                              n -= 1
+                              a.map do |d|
+                                nn = 1 + n%d.cardinality
+                                n /= d.cardinality
+                                d.from_n(nn)
+                              end
+                            },
+                            total_card)
+      end
+      return finite if infinites.empty?
+      return infinite if finites.empty?
+      Domain.new(lambda{|a|a.length == domains.length and a.zip(domains).all?{|el,d|d.domain.call(el)}},
+                 lambda{|a|
+                   finite_n = finite.to_n(finites.map{|i|a[i]})
+                   infinite_n = infinite.to_n(infinites.map{|i|a[i]})
+                   (infinite_n-1)*total_card + finite_n
+                 },
+                 lambda{|n|
+                   finite_n = 1 + (n-1)%total_card
+                   infinite_n = 1 + (n-1)/total_card
+                   fin_obs = finites.zip(finite.from_n(finite_n))
+                   inf_obs = infinites.zip(infinite.from_n(infinite_n))
+                   (inf_obs + fin_obs).sort_by{|a,b|a}.map{|a,b|b}
+                 },
+                 :aleph_null)
     end
 
     def convert_to(ob, domain)
