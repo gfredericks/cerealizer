@@ -42,7 +42,7 @@ module Cerealizer
           Domain.join(object, Domain.finite_disjunction([{}]))
         end
       end
-      doms[:value].to_s=lambda{|v|self.json_value_to_s(v)}
+      #doms[:value].to_s=lambda{|v|self.json_value_to_s(v)}
       doms[:value]
     end
 
@@ -59,6 +59,21 @@ module Cerealizer
         {false=>"false", true=>"true", nil=>"null"}[v]
       end
     end
-    
+
+    def sentences(nouns, verbs, adjectives, adverbs)
+      doms = Domain.recursively_define do |ob|
+        ob.define(:noun_phrase) do
+          Domain.join(nouns,
+                      Domain.cartesian_product(adjectives, nouns),
+                      Donain.cartesian_product(adjectives, adjectives, nouns))
+        end
+
+        ob.define(:verb_phrase) do
+          Domain.join(verbs,
+                      Domain.cartesian_product(verbs, ob.stub(:noun_phrases)),
+                      Domain.cartesian_product(verbs, adverbs))
+        end
+      end
+    end
   end
 end

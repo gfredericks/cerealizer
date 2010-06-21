@@ -202,46 +202,13 @@ module Cerealizer
         a.length)
     end
 
+    def +(other)
+      return other+self if other.class <=JoinedDomain
+      Domain.join(self, other)
+    end
+
     def self.join(*domains)
-      check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
-      check_that("at least two domains are required"){domains.length > 1}
-      cards = domains.map{|d|d.cardinality}
-      min = cards.reject{|c|c == :aleph_null}.min
-      zipped = domains.zip((1..domains.length).to_a)
-      card = (cards.uniq == [:aleph_null] ? :aleph_null : cards.length * min)
-      spread_even=Domain.new(lambda{|a|(domains).any?{|d|d.domain.call(a)}},
-                 lambda{|ob|
-                   doms = zipped.select{|d,i|d.domain.call(ob)}
-                   check_that("object must be part of exactly one domain"){doms.length == 1}
-                   dom,i = doms[0]
-                   (dom.to_n(ob) - 1)*domains.length + i
-                 },
-                 lambda{|n|
-                   n-=1
-                   domains[n % domains.length].from_n(1+n/domains.length)
-                 },
-                 card)
-      if(min and cards.uniq.length > 1)
-        chomped = domains.reject{|d|d.cardinality == min}.map{|d|d.drop(min)}
-        dd = (chomped.length == 1 ? chomped[0] : Domain.join(*chomped))
-        ceiling = min * cards.length
-        Domain.new(spread_even.domain,
-                   lambda{|ob|
-                     n = spread_even.to_n(ob)
-                     return n if n <= ceiling
-                     ceiling + dd.to_n(ob)
-                   },
-                   lambda{|n|
-                     if(n > ceiling)
-                       dd.from_n(n-ceiling)
-                     else
-                       spread_even.from_n(n)
-                     end
-                   },
-                   cards.any?{|c|c == :aleph_null} ? :aleph_null : cards.inject{|u,v|u+v})
-      else
-        spread_even
-      end
+      JoinedDomain.new(*domains)
     end
 
     def self.set_of(domain)
@@ -265,12 +232,8 @@ module Cerealizer
                  self.cardinality)
     end
 
-    def to_s=(lam)
-      @to_s = lam
-    end
-
     def self.cartesian_product(*domains)
-      check_that("arguments must all be domains"){domains.all?{|d|d.class == Domain}}
+      check_that("arguments must all be domains"){domains.all?{|d|d.class <= Domain}}
       check_that("at least two domains are required"){domains.length > 1}
       finites = []
       infinites = []
@@ -354,19 +317,7 @@ module Cerealizer
       Domain.check_that("Argument must be within cardinality of domain") do
         @cardinality == :aleph_null or n <= @cardinality
       end
-      ob = @from_n.call(n)
-      # This probably isn't acceptable behavior long-term, to exclude numbers
-      #   maybe we could only redefine inspect? :-/
-      if(@to_s and not [Fixnum, Bignum].include?(ob.class))
-        class << ob
-          attr_accessor(:cerealizer_to_s)
-          def to_s
-            cerealizer_to_s.call(self)
-          end
-        end
-        ob.cerealizer_to_s = @to_s
-      end
-      ob      
+      @from_n.call(n)
     end
 
     # Returns a new domain that excludes the first n elements of this domain
