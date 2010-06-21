@@ -44,7 +44,7 @@ module Cerealizer
     end
     
     def +(other)
-      JoinedDomain.new(@domains + [other])      
+      JoinedDomain.new(*(@domains + [other]))
     end
   end
 end
