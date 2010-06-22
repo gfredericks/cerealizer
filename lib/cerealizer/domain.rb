@@ -192,10 +192,8 @@ module Cerealizer
             n -= k
             bits += 1
           end
-          #nn = binary_strings.to_n("0"*bits)
           k = string_partitions(bits, length)
           n-=1
-          #nn += n/k
           s = "%0#{bits}d" % ((n/k).to_s(2).to_i)
           s = "" if bits == 0
           n = 1 + n % k
