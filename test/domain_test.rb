@@ -67,9 +67,7 @@ class DomainTest < Test::Unit::TestCase
   def test_recur_basic_tree
     leaf = Domain::NATURALS
     tree = (Domain.recursively_define do |ob|
-      ob.define(:tree) do
-        Domain.join(leaf, Domain.cartesian_product(ob.stub(:tree),ob.stub(:tree)))
-      end
+      ob.define(:tree, Domain.join(leaf, Domain.cartesian_product(ob.stub(:tree),ob.stub(:tree))))
     end)[:tree]
     assert_domain(tree)
     assert_range(tree,[1,2,3,4,5,[1,[2,[3,4]]],[5,6],[6,7],[8,10],[[[6,3],8],[1,2]]])
@@ -79,6 +77,7 @@ class DomainTest < Test::Unit::TestCase
     ascii_strings = Domain.set_of(Domain::ASCII)
     assert_domain(ascii_strings)
     assert_range(ascii_strings, [%w(this a nd that), %w(wait till they take), %w(down), %w(the), []].map{|a|Set.new(a)})
+    assert_not_range(ascii_strings, ["A string", 3, Set.new(["this","and",12])])
   end
 
   private
@@ -111,6 +110,14 @@ class DomainTest < Test::Unit::TestCase
       n = d.to_n(ob)
       ob2 = d.from_n(n)
       assert_equal(ob, ob2, "Object #{ob.inspect} maps to #{n} and back to #{ob2.inspect}")
+    end
+  end
+
+  def assert_not_range(d,r)
+    r.each do |ob|
+      assert_raises(CerealizerException) do
+        d.to_n(r)
+      end
     end
   end
 end

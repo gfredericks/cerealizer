@@ -1,4 +1,5 @@
 require 'set'
+require 'cerealizer/cerealizer_exception'
 
 module Cerealizer
   class Domain
@@ -67,16 +68,12 @@ module Cerealizer
     def self.recursively_define
       ob = Object.new
       class << ob
-        attr_reader :domains
-        def define(domain_name)
+        attr_reader :domains # is this necessary??
+        def define(domain_name, domain)
           @domains ||= {}
-          @defining ||= nil # avoids warning
-          raise "Can only define one domain at a time" if(@defining)
           Domain.check_that("domain name must be symbol"){domain_name.class==Symbol}
-          @defining = domain_name
-          d = yield
-          @defining = nil
-          @domains[domain_name]=d
+          Domain.check_that("domain must be a domain"){domain.class <= Domain}
+          @domains[domain_name]=domain
         end
 
         def stub(domain_name)
@@ -86,7 +83,7 @@ module Cerealizer
             Domain.new(lambda{|x|@domains[domain_name].domain.call(x)},
                        lambda{|x|@domains[domain_name].to_n(x)},
                        lambda{|n|@domains[domain_name].from_n(n)},
-                       # THIS IS A QUESTIONABLE ASSUMPTION
+                       # THIS IS A QUESTIONABLE ASSUMPTION, maybe.
                        :aleph_null)
         end
       end
@@ -343,7 +340,7 @@ module Cerealizer
     end
 
     def self.check_that(message)
-      raise message unless yield
+      raise CerealizerException.new(message) unless yield
     end
 
     public 
