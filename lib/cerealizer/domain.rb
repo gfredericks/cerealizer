@@ -5,6 +5,24 @@ module Cerealizer
   class Domain
     attr_accessor :cardinality, :domain
 
+    ARRAY_TO_SET = lambda {|a|
+        s = Set.new
+        n = 0
+        a.each do |m|
+          s.add(n+=m)
+        end
+        s
+      }
+    SET_TO_ARRAY = lambda {|s|
+        a = s.to_a.sort
+        i = a.length-1
+        while(i > 0)
+          a[i] = a[i] - a[i-1]
+          i-=1
+        end
+        a
+      }
+
     private 
     def initialize(domain, to_n, from_n, cardinality)
       @domain=domain
@@ -215,6 +233,20 @@ module Cerealizer
           lambda{|s|Set.new(s.map{|ob|domain.to_n(ob)})})
     end
 
+    def self.fixed_size_set_of(domain, size)
+      arr = Domain.fixed_length_natural_array(size)
+      set = arr.map(lambda{|s|s.class == Set and s.size == size and s.all?{|el|Domain.is_n?(el)}},
+              Domain::ARRAY_TO_SET,
+              Domain::SET_TO_ARRAY)
+      set.map(lambda{|s|s.class == Set and s.size == size and s.all?{|el|domain.domain.call(el)}},
+              lambda{|s|Set.new(s.map{|el|domain.from_n(el)})},
+              lambda{|s|Set.new(s.map{|el|domain.to_n(el)})})
+    end
+
+    def self.fixed_length_array_of(domain, size)
+      Domain.cartesian_product(*([domain]*size))
+    end
+
     def self.array_of(domain)
       Domain::NATURAL_ARRAY.map(
           lambda{|s|s.class == Array and s.all?{|ob|domain.domain.call(ob)}},
@@ -304,6 +336,10 @@ module Cerealizer
       domain.from_n(self.to_n(ob))
     end
 
+    def Domain.converter(d1,d2)
+      lambda{|ob|d2.from_n(d1.to_n(ob))}
+    end
+
     def to_n(el)
       Domain.check_that("Argument must be in domain"){@domain.call(el)}
       @to_n.call(el)
@@ -315,6 +351,10 @@ module Cerealizer
         @cardinality == :aleph_null or n <= @cardinality
       end
       @from_n.call(n)
+    end
+
+    def take(n)
+      (1..n).map{|x|self.from_n(x)}
     end
 
     # Returns a new domain that excludes the first n elements of this domain

@@ -26,22 +26,10 @@ module Cerealizer
     NATURAL_SET = Domain.new(
       lambda{|ob|ob.class == Set and ob.all?{|el|Domain.is_n?(el)}},
       lambda{|s|
-        a = s.to_a.sort
-        i = a.length-1
-        while(i > 0)
-          a[i] = a[i] - a[i-1]
-          i-=1
-        end
-        NATURAL_ARRAY.to_n(a)
+        NATURAL_ARRAY.to_n(Domain::SET_TO_ARRAY.call(s))
       },
       lambda{|n|
-        a = NATURAL_ARRAY.from_n(n)
-        s = Set.new
-        n = 0
-        a.each do |m|
-          s.add(n+=m)
-        end
-        s
+        Domain::ARRAY_TO_SET.call(NATURAL_ARRAY.from_n(n))
       },
       :aleph_null)
   end

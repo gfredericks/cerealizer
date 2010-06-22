@@ -71,6 +71,7 @@ class DomainTest < Test::Unit::TestCase
     end)[:tree]
     assert_domain(tree)
     assert_range(tree,[1,2,3,4,5,[1,[2,[3,4]]],[5,6],[6,7],[8,10],[[[6,3],8],[1,2]]])
+    assert_not_range(tree, [[1,2,3], [1,[2,[6,3],[5]]]])
   end
 
   def test_set_of
