@@ -53,5 +53,13 @@ module Cerealizer
         {false=>"false", true=>"true", nil=>"null"}[v]
       end
     end
+
+    INTEGER_EXPRESSIONS = begin
+      doms = Domain.recursively_define do |ob|
+        expression = Domain.nonempty_array_of(ob.stub(:term))
+        term = Domain.nonempty_array_of(ob.stub(:factor))
+        factor = Domain.join(ob.stub(:expression), INTEGERS)
+      end
+    end
   end
 end

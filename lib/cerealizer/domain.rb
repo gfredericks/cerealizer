@@ -2,6 +2,39 @@ require 'set'
 require 'cerealizer/cerealizer_exception'
 
 module Cerealizer
+  module FixedLengthArrayMethods
+    def self.string_partitions(string_length, n)
+      return 1 if string_length == 0 or n == 1
+      return n if string_length == 1
+      @@sp||={}
+      @@sp[[string_length,n]]||=begin
+        (0..string_length).map{|x|string_partitions(string_length - x, n - 1)}.inject(0){|u,v|u+v}
+      end
+    end
+
+    def self.nth_partition(s, n, i)
+      raise "Foul!" if i > string_partitions(s.length, n)
+      return [s] if n == 1
+      return [""] * n if s.empty?
+      last_length = 0
+      while(i > (k=string_partitions(s.length-last_length, n-1)))
+        last_length += 1
+        i -= k
+      end
+      a = nth_partition(last_length == 0 ? s : s[0...(-last_length)], n-1, i)
+      a << (last_length == 0 ? "" : s[(-last_length)..-1])
+      a
+    end
+
+    def self.partition_lengths_to_n(a)
+      return 1 if a.length < 2
+      n = 0
+      total = a.inject{|u,v|u+v}
+      (0...a.last).each{|x|n+=string_partitions(total-x, a.length-1)}
+      n + partition_lengths_to_n(a[0...-1])
+    end
+  end
+
   class Domain
     attr_accessor :cardinality, :domain
 
@@ -139,36 +172,6 @@ module Cerealizer
                           1)
       end
 
-      def self.string_partitions(string_length, n)
-        return 1 if string_length == 0 or n == 1
-        return n if string_length == 1
-        @@sp||={}
-        @@sp[[string_length,n]]||=begin
-          (0..string_length).map{|x|string_partitions(string_length - x, n - 1)}.inject(0){|u,v|u+v}
-        end
-      end
-
-      def self.nth_partition(s, n, i)
-        raise "Foul!" if i > string_partitions(s.length, n)
-        return [s] if n == 1
-        return [""] * n if s.empty?
-        last_length = 0
-        while(i > (k=string_partitions(s.length-last_length, n-1)))
-          last_length += 1
-          i -= k
-        end
-        a = nth_partition(last_length == 0 ? s : s[0...(-last_length)], n-1, i)
-        a << (last_length == 0 ? "" : s[(-last_length)..-1])
-        a
-      end
-
-      def self.partition_lengths_to_n(a)
-        return 1 if a.length < 2
-        n = 0
-        total = a.inject{|u,v|u+v}
-        (0...a.last).each{|x|n+=string_partitions(total-x, a.length-1)}
-        n + partition_lengths_to_n(a[0...-1])
-      end
 
       binary_strings = Domain.string("01")
       Domain.new(
@@ -179,26 +182,26 @@ module Cerealizer
           bits = 0
           n = 0
           while(bits < total_bits)
-            n += (string_partitions(bits, length)*(2**bits))
+            n += (FixedLengthArrayMethods::string_partitions(bits, length)*(2**bits))
             bits += 1
           end
-          n += (a.join("").to_i(2))*string_partitions(total_bits, length)
-          n + partition_lengths_to_n(a.map{|s|s.length})
+          n += (a.join("").to_i(2))*FixedLengthArrayMethods::string_partitions(total_bits, length)
+          n + FixedLengthArrayMethods::partition_lengths_to_n(a.map{|s|s.length})
         },
         lambda{|n|
           nn = 1
           bits = 0
-          while(n > (k=string_partitions(bits, length)*(2**bits)))
+          while(n > (k=FixedLengthArrayMethods::string_partitions(bits, length)*(2**bits)))
             n -= k
             bits += 1
           end
-          k = string_partitions(bits, length)
+          k = FixedLengthArrayMethods::string_partitions(bits, length)
           n-=1
           s = "%0#{bits}d" % ((n/k).to_s(2).to_i)
           s = "" if bits == 0
           n = 1 + n % k
 
-          parts = nth_partition(s, length, n)
+          parts = FixedLengthArrayMethods::nth_partition(s, length, n)
           parts.map{|s|("1"+s).to_i(2)}
         },
         :aleph_null)
@@ -250,6 +253,10 @@ module Cerealizer
           lambda{|s|s.class == Array and s.all?{|ob|domain.domain.call(ob)}},
           lambda{|s|s.map{|n|domain.from_n(n)}},
           lambda{|s|s.map{|ob|domain.to_n(ob)}})
+    end
+
+    def self.nonempty_array_of(domain)
+      self.array_of(domain).without([])
     end
 
     def map(domain_predicate, from_old_to_new, from_new_to_old)
