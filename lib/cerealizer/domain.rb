@@ -189,7 +189,6 @@ module Cerealizer
           n + FixedLengthArrayMethods::partition_lengths_to_n(a.map{|s|s.length})
         },
         lambda{|n|
-          nn = 1
           bits = 0
           while(n > (k=FixedLengthArrayMethods::string_partitions(bits, length)*(2**bits)))
             n -= k
